@@ -1,0 +1,113 @@
+import dask.dataframe as dd
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, f1_score
+
+# === STEP 1: Load 50% stratified TRAIN data using Dask ===
+df_train = dd.read_csv(
+    r"C:\Users\Jeba Jini\Documents\Pro 4 Microsoft security\stratified_train_sample_30.csv",
+    dtype={
+        'ActionGrouped': 'object',
+        'ActionGranular': 'object',
+        'AntispamDirection': 'object',
+        'ResourceType': 'object',
+        'Roles': 'object',
+        'ThreatFamily': 'object'
+    },
+    blocksize="100MB",
+    assume_missing=True
+)
+
+df_train = df_train.compute()
+
+# === STEP 2: Preprocessing and Cleanup ===
+df_train.columns = df_train.columns.str.strip()
+df_train['IncidentGrade'] = df_train['IncidentGrade'].str.strip()
+
+# Drop unnecessary columns
+drop_cols = [
+    'Id', 'OrgId', 'IncidentId', 'AlertId', 'DetectorId', 'Timestamp',
+    'Sha256', 'Url', 'AccountSid', 'AccountUpn', 'AccountObjectId', 'DeviceId',
+    'RegistryKey', 'RegistryValueName', 'RegistryValueData',
+    'ApplicationId', 'OAuthApplicationId', 'FolderPath', 'ResourceIdName'
+]
+df_train = df_train.drop(columns=[col for col in drop_cols if col in df_train.columns])
+
+# Separate features and target
+target = 'IncidentGrade'
+X = df_train.drop(columns=[target])
+y = df_train[target]
+
+# Identify categorical and numerical features
+cat_cols = X.select_dtypes(include='object').columns.tolist()
+num_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+
+# === STEP 3: Preprocessing Pipelines ===
+categorical_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('encoder', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+])
+
+numerical_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='mean'))
+])
+
+preprocessor = ColumnTransformer([
+    ('cat', categorical_pipeline, cat_cols),
+    ('num', numerical_pipeline, num_cols)
+])
+
+# === STEP 4: Train/Validation Split (Stratified) ===
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+# === STEP 5: Model Pipeline ===
+model_pipeline = Pipeline([
+    ('preprocess', preprocessor),
+    ('clf', RandomForestClassifier(n_estimators=100, random_state=42))
+])
+
+# === STEP 6: Train the Model ===
+model_pipeline.fit(X_train, y_train)
+
+# === STEP 7: Evaluation on Validation Set ===
+y_val_pred = model_pipeline.predict(X_val)
+
+print("\n📊 Validation Set Results:")
+print(classification_report(y_val, y_val_pred))
+print("✅ Validation Macro F1 Score:", f1_score(y_val, y_val_pred, average='macro'))
+
+# === STEP 8: Load 50% Stratified TEST Data ===
+df_test = pd.read_csv(
+    r"C:\Users\Jeba Jini\Documents\Pro 4 Microsoft security\stratified_test_sample_30.csv",
+    low_memory=False,
+    dtype={
+        'ActionGrouped': 'object',
+        'ActionGranular': 'object',
+        'AntispamDirection': 'object',
+        'ResourceType': 'object',
+        'Roles': 'object',
+        'ThreatFamily': 'object'
+    }
+)
+
+df_test.columns = df_test.columns.str.strip()
+df_test['IncidentGrade'] = df_test['IncidentGrade'].str.strip()
+df_test = df_test.drop(columns=[col for col in drop_cols if col in df_test.columns])
+
+# Separate features and target
+X_test = df_test.drop(columns=[target])
+y_test = df_test[target]
+
+# === STEP 9: Evaluation on Final Test Set ===
+y_test_pred = model_pipeline.predict(X_test)
+
+print("\n🧪 Final Test Set Results:")
+print(classification_report(y_test, y_test_pred))
+print("✅ Final Macro F1 Score:", f1_score(y_test, y_test_pred, average='macro'))

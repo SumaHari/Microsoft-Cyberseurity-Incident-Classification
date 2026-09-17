@@ -1,0 +1,54 @@
+# Step 3: Set sampling fraction to 50%
+frac = 0.5
+# Step 1: Clean up column names (in case of extra spaces)
+df_train.columns = df_train.columns.str.strip()
+
+# Step 2: Use 'IncidentGrade' instead of 'TriageLabel'
+df_tp = df_train[df_train['IncidentGrade'] == 'TruePositive'].sample(frac=0.5, random_state=42)
+df_bp = df_train[df_train['IncidentGrade'] == 'BenignPositive'].sample(frac=0.5, random_state=42)
+df_fp = df_train[df_train['IncidentGrade'] == 'FalsePositive'].sample(frac=0.5, random_state=42)
+
+# Step 3: Combine & compute
+df_stratified_sample = dd.concat([df_tp, df_bp, df_fp])
+df_sampled = df_stratified_sample.compute()
+aqaa
+# Step 4: Save to CSV
+output_path = r"C:\Users\Jeba Jini\Documents\Pro 4 Microsoft security\stratified_train_sample_50.csv"
+df_sampled.to_csv(output_path, index=False)
+
+print("✅ Stratified sample created using 'IncidentGrade' and saved successfully.")
+# Step 8: Check the class distribution to verify stratification
+print("Class distribution in 50% sample:")
+print(df_sampled['IncidentGrade'].value_counts(normalize=True))
+
+import pandas as pd
+
+# Load full test set
+df_test = pd.read_csv(
+    r"C:\Users\Jeba Jini\Documents\Pro 4 Microsoft security\Test_data.csv",
+    low_memory=False
+)
+
+# Clean column names and labels
+df_test.columns = df_test.columns.str.strip()
+df_test['IncidentGrade'] = df_test['IncidentGrade'].str.strip()
+
+# Fraction of test data you want to sample
+frac = 0.5
+
+# Sample from each class
+df_tp = df_test[df_test['IncidentGrade'] == 'TruePositive'].sample(frac=frac, random_state=42)
+df_fp = df_test[df_test['IncidentGrade'] == 'FalsePositive'].sample(frac=frac, random_state=42)
+df_bp = df_test[df_test['IncidentGrade'] == 'BenignPositive'].sample(frac=frac, random_state=42)
+
+# Combine all sampled subsets
+df_test_sampled = pd.concat([df_tp, df_fp, df_bp])
+
+# Shuffle (optional but good practice)
+df_test_sampled = df_test_sampled.sample(frac=1, random_state=42).reset_index(drop=True)
+
+# Save sampled test set
+df_test_sampled.to_csv(r"C:\Users\Jeba Jini\Documents\Pro 4 Microsoft security\stratified_test_sample_50.csv", index=False)
+
+print("✅ 50% stratified test set saved successfully.")
+print(df_test_sampled['IncidentGrade'].value_counts(normalize=True) * 100)

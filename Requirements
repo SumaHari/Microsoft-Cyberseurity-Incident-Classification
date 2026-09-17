@@ -1,0 +1,22 @@
+# Core packages
+pandas==2.2.2
+numpy==1.26.4
+
+# Machine Learning
+scikit-learn==1.4.2
+xgboost==2.0.3
+
+# Visualization
+matplotlib==3.8.4
+seaborn==0.13.2
+missingno==0.5.2
+
+# Handling large datasets
+dask[dataframe]==2024.5.2
+
+# Model interpretation (optional but recommended)
+shap==0.45.1
+
+# Jupyter Notebook (if used for EDA)
+notebook==7.2.0
+ipykernel==6.29.4
